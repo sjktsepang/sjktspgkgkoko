@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rekod Kehadiran Guru Kokurikulum</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef2f7;min-height:100vh}
+  input,select,button{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const SEKOLAH = "SJK(T) SEPANG";
+const DAERAH  = "SEPANG";
+const LS_KEY  = "kehadiran_guru_records";
+
+// ── LocalStorage helpers ───────────────────────────────────────────────────
+function loadRecords(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    return raw?JSON.parse(raw):[];
+  }catch(e){return[]}
+}
+function saveRecords(recs){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(recs))}catch(e){}
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function padZ(n){return String(n).padStart(2,"0")}
+function fmtTime(d){return`${padZ(d.getHours())}:${padZ(d.getMinutes())}:${padZ(d.getSeconds())}`}
+function fmtTimeSh(d){return`${padZ(d.getHours())}:${padZ(d.getMinutes())}`}
+function fmtDate(d){
+  const days=["Ahad","Isnin","Selasa","Rabu","Khamis","Jumaat","Sabtu"];
+  const months=["Jan","Feb","Mac","Apr","Mei","Jun","Jul","Ogo","Sep","Okt","Nov","Dis"];
+  return`${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+function isoDate(d){return`${d.getFullYear()}-${padZ(d.getMonth()+1)}-${padZ(d.getDate())}`}
+
+function useRealTime(){
+  const[now,setNow]=useState(new Date());
+  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t)},[]);
+  return now;
+}
+
+// ── Signature Pad ──────────────────────────────────────────────────────────
+function SignaturePad({onSave,onCancel}){
+  const canvasRef=useRef();
+  const drawing=useRef(false);
+  const last=useRef(null);
+  const getPos=(e,c)=>{const r=c.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top}};
+  const start=(e)=>{e.preventDefault();drawing.current=true;last.current=getPos(e,canvasRef.current)};
+  const move=(e)=>{
+    e.preventDefault();if(!drawing.current)return;
+    const c=canvasRef.current,ctx=c.getContext("2d"),p=getPos(e,c);
+    ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);
+    ctx.strokeStyle="#1a3a5c";ctx.lineWidth=2.5;ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();
+    last.current=p;
+  };
+  const end=(e)=>{e.preventDefault();drawing.current=false};
+  const clear=()=>{const c=canvasRef.current;c.getContext("2d").clearRect(0,0,c.width,c.height)};
+  const save=()=>{
+    const c=canvasRef.current,ctx=c.getContext("2d");
+    const data=ctx.getImageData(0,0,c.width,c.height).data;
+    if(!data.some((v,i)=>i%4===3&&v>0)){alert("Sila turunkan tandatangan dahulu.");return}
+    onSave(c.toDataURL("image/png"));
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:16,padding:24,width:"100%",maxWidth:420,boxShadow:"0 20px 60px rgba(0,0,0,0.5)"}}>
+        <div style={{fontWeight:800,fontSize:17,color:"#1a3a5c",marginBottom:6}}>✍️ Tandatangan</div>
+        <div style={{fontSize:12,color:"#8
